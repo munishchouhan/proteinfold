@@ -8,10 +8,6 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { UTILS_NFSCHEMA_PLUGIN     } from '../../nf-core/utils_nfschema_plugin'
-include { paramsSummaryMap          } from 'plugin/nf-schema'
-include { samplesheetToList         } from 'plugin/nf-schema'
-include { paramsHelp                } from 'plugin/nf-schema'
 include { completionEmail           } from '../../nf-core/utils_nfcore_pipeline'
 include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
 include { imNotification            } from '../../nf-core/utils_nfcore_pipeline'
@@ -75,17 +71,16 @@ ${colors.purple}  nf-core/proteinfold ${workflow.manifest.version}${colors.reset
 """
     command = "nextflow run ${workflow.manifest.name} -profile <docker/singularity/.../institute> --input samplesheet.csv --outdir <OUTDIR>"
 
-    UTILS_NFSCHEMA_PLUGIN (
-        workflow,
-        validate_params,
-        null,
-        help,
-        help_full,
-        show_hidden,
-        before_text,
-        after_text,
-        command
-    )
+    //
+    // Print banner and help
+    //
+    log.info before_text
+    log.info after_text
+
+    if (help || help_full) {
+        log.info "Usage: ${command}"
+        exit 0
+    }
 
     //
     // Check config provided to the pipeline
@@ -97,7 +92,15 @@ ${colors.purple}  nf-core/proteinfold ${workflow.manifest.version}${colors.reset
     //
     // Create channel from input file provided through input
     //
-    ch_samplesheet = channel.fromList(samplesheetToList(input, "assets/schema_input.json"))
+    ch_samplesheet = Channel.fromPath(input)
+        .splitCsv(header: true)
+        .map { row ->
+            def meta = [:]
+            if (row.containsKey('sequence')) meta.sequence = row.sequence
+            if (row.containsKey('id')) meta.id = row.id
+            def fasta = file(row.fasta, checkIfExists: true)
+            [meta, fasta]
+        }
 
     ch_samplesheet
         .map { meta, fasta ->
@@ -148,7 +151,7 @@ workflow PIPELINE_COMPLETION {
     multiqc_report  //  string: Path to MultiQC report
 
     main:
-    summary_params = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
+    summary_params = [:]
     def multiqc_reports = multiqc_report.toList()
 
     //

@@ -5,7 +5,6 @@
 //
 // SUBWORKFLOW: Consisting entirely of nf-core/modules
 //
-include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from './utils_nfcore_proteinfold_pipeline'
@@ -125,7 +124,7 @@ workflow POST_PROCESSING {
     ch_multiqc_report = channel.empty()
 
     if (!skip_multiqc) {
-        summary_params           = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
+        summary_params           = [:]
         ch_workflow_summary      = channel.value(paramsSummaryMultiqc(summary_params))
         ch_methods_description   = channel.value(methodsDescriptionText(ch_multiqc_methods_description))
 
